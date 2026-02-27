@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HiveKeeper — Beehive Management Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --amber: #E8A020;
+    --amber-dark: #B87318;
+    --amber-light: #F5C842;
+    --amber-pale: #FFF3D6;
+    --honey: #D4880A;
+    --dark: #1A1208;
+    --dark-mid: #2D2010;
+    --brown: #5C3D11;
+    --cream: #FDF6E3;
+    --warm-grey: #8B7355;
+    --success: #4A7C59;
+    --warning: #C85A00;
+    --danger: #8B1A1A;
+    --cell-size: 28px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--dark);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Honeycomb background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zm0-2l26-15V18L28 2 2 18v31l26 15z' fill='%23E8A020' fill-opacity='0.04'/%3E%3Cpath d='M28 100L0 84V50l28-16 28 16v34L28 100zm0-2l26-15V52L28 36 2 52v31l26 15z' fill='%23E8A020' fill-opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  /* HEADER */
+  header {
+    text-align: center;
+    padding: 48px 0 36px;
+    position: relative;
+  }
+
+  .bee-icon {
+    font-size: 52px;
+    display: block;
+    animation: float 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(232,160,32,0.6));
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(-5deg); }
+    50% { transform: translateY(-10px) rotate(5deg); }
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 900;
+    color: var(--amber-light);
+    letter-spacing: -1px;
+    margin: 12px 0 8px;
+    text-shadow: 0 0 40px rgba(232,160,32,0.4);
+  }
+
+  .tagline {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--warm-grey);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(232,160,32,0.15);
+    border-radius: 14px;
+    padding: 5px;
+    margin: 32px 0 28px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    flex: 1;
+    min-width: 110px;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: var(--warm-grey);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .tab-btn:hover { color: var(--cream); background: rgba(232,160,32,0.08); }
+
+  .tab-btn.active {
+    background: var(--amber);
+    color: var(--dark);
+    font-weight: 700;
+    box-shadow: 0 4px 16px rgba(232,160,32,0.35);
+  }
+
+  .tab-icon { font-size: 1rem; }
+
+  /* PANELS */
+  .panel { display: none; animation: fadeUp 0.3s ease; }
+  .panel.active { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* CARDS */
+  .card {
+    background: rgba(45, 32, 16, 0.7);
+    border: 1px solid rgba(232,160,32,0.2);
+    border-radius: 18px;
+    padding: 28px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+  }
+
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--amber-light);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(232,160,32,0.4), transparent);
+  }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* FORM ELEMENTS */
+  .field { display: flex; flex-direction: column; gap: 7px; }
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--warm-grey);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+  }
+
+  input[type="number"],
+  input[type="text"],
+  select {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(26,18,8,0.8);
+    border: 1px solid rgba(232,160,32,0.25);
+    border-radius: 10px;
+    color: var(--cream);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 3px rgba(232,160,32,0.15);
+  }
+
+  select option { background: var(--dark-mid); }
+
+  /* SLIDER */
+  .slider-field { display: flex; flex-direction: column; gap: 8px; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(232,160,32,0.2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--amber);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(232,160,32,0.5);
+    transition: transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--warm-grey);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* BUTTON */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 26px;
+    background: var(--amber);
+    color: var(--dark);
+    border: none;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .btn:hover {
+    background: var(--amber-light);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(232,160,32,0.35);
+  }
+
+  .btn:active { transform: translateY(0); }
+
+  /* RESULTS */
+  .results {
+    display: none;
+    margin-top: 20px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .results.visible { display: block; }
+
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+
+  .result-item {
+    background: rgba(26,18,8,0.9);
+    border: 1px solid rgba(232,160,32,0.3);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  }
+
+  .result-label {
+    font-size: 0.68rem;
+    color: var(--warm-grey);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .result-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--amber-light);
+    line-height: 1;
+  }
+
+  .result-unit {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--warm-grey);
+    margin-top: 4px;
+  }
+
+  /* STATUS BADGE */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .status-good { background: rgba(74,124,89,0.2); color: #6DBF85; border: 1px solid rgba(74,124,89,0.4); }
+  .status-warn { background: rgba(200,90,0,0.2); color: #FF9944; border: 1px solid rgba(200,90,0,0.4); }
+  .status-danger { background: rgba(139,26,26,0.2); color: #FF6666; border: 1px solid rgba(139,26,26,0.4); }
+
+  /* INSIGHT BOX */
+  .insight {
+    background: rgba(232,160,32,0.08);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--cream);
+    line-height: 1.6;
+  }
+
+  .insight strong { color: var(--amber-light); }
+
+  /* PROGRESS BAR */
+  .progress-wrap { margin: 12px 0; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--warm-grey); font-family: 'DM Mono', monospace; margin-bottom: 6px; }
+  .progress-bar { height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--amber-dark), var(--amber-light)); transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+  .progress-fill.warn { background: linear-gradient(90deg, #C85A00, #FF9944); }
+  .progress-fill.danger { background: linear-gradient(90deg, #8B1A1A, #FF6666); }
+
+  /* HIVE VISUAL */
+  .hive-visual {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+
+  .super-box {
+    flex: 1;
+    min-width: 120px;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    border: 1px solid rgba(232,160,32,0.25);
+    position: relative;
+  }
+
+  .super-box.honey-super { background: rgba(212,136,10,0.15); }
+  .super-box.brood-box { background: rgba(92,61,17,0.3); }
+
+  .super-label { font-size: 0.7rem; color: var(--warm-grey); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .super-fill {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+  }
+
+  .frame-row { display: flex; gap: 3px; }
+  .frame {
+    width: 22px; height: 32px;
+    border-radius: 3px;
+    border: 1px solid rgba(232,160,32,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .frame-fill {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--amber);
+    transition: height 0.6s ease;
+  }
+
+  .frame.brood { border-color: rgba(92,61,17,0.6); }
+  .frame-fill.brood-fill { background: var(--brown); }
+
+  /* SECTION DIVIDER */
+  .divider {
+    text-align: center;
+    color: var(--warm-grey);
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    margin: 24px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(232,160,32,0.15);
+  }
+
+  /* CHECKLIST */
+  .checklist { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(26,18,8,0.5);
+    border-radius: 10px;
+    border: 1px solid rgba(232,160,32,0.1);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .check-item:hover { border-color: rgba(232,160,32,0.3); }
+  .check-item.done { opacity: 0.6; }
+
+  .check-box {
+    width: 20px; height: 20px;
+    border: 2px solid rgba(232,160,32,0.4);
+    border-radius: 5px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-top: 1px;
+  }
+
+  .check-item.done .check-box {
+    background: var(--amber);
+    border-color: var(--amber);
+  }
+
+  .check-text { font-size: 0.85rem; line-height: 1.5; }
+  .check-text strong { color: var(--amber-light); font-size: 0.78rem; display: block; }
+
+  /* HONEY METER */
+  .honey-meter {
+    position: relative;
+    height: 180px;
+    background: rgba(26,18,8,0.8);
+    border-radius: 14px;
+    border: 1px solid rgba(232,160,32,0.25);
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    margin: 16px 0;
+  }
+
+  .honey-fill {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(212,136,10,0.6) 0%, rgba(232,160,32,0.9) 100%);
+    transition: height 1s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+  }
+
+  .honey-fill::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 10px;
+    background: rgba(245,200,66,0.6);
+    border-radius: 4px;
+    animation: wave 2s ease-in-out infinite;
+  }
+
+  @keyframes wave {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .honey-label-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--cream);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 480px) {
+    .card { padding: 20px 16px; }
+    h1 { font-size: 1.8rem; }
+    .result-value { font-size: 1.3rem; }
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 32px 0 0;
+    font-size: 0.72rem;
+    color: rgba(139,115,85,0.5);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <span class="bee-icon">🐝</span>
+    <h1>HiveKeeper</h1>
+    <p class="tagline">Beehive Management Calculator</p>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('colony', this)"><span class="tab-icon">🏠</span> Colony Health</button>
+    <button class="tab-btn" onclick="switchTab('honey', this)"><span class="tab-icon">🍯</span> Honey Yield</button>
+    <button class="tab-btn" onclick="switchTab('feed', this)"><span class="tab-icon">🌿</span> Feeding</button>
+    <button class="tab-btn" onclick="switchTab('swarm', this)"><span class="tab-icon">🔄</span> Swarm Risk</button>
+    <button class="tab-btn" onclick="switchTab('inspection', this)"><span class="tab-icon">📋</span> Inspection</button>
+  </div>
+
+  <!-- ═══════════ COLONY HEALTH ═══════════ -->
+  <div id="panel-colony" class="panel active">
+    <div class="card">
+      <div class="card-title">🐝 Colony Population Estimator</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Brood Frames (covered)</label>
+          <input type="number" id="brood-frames" value="6" min="0" max="20" placeholder="e.g. 6">
+        </div>
+        <div class="field">
+          <label>Adult Bee Frames</label>
+          <input type="number" id="bee-frames" value="8" min="0" max="30" placeholder="e.g. 8">
+        </div>
+        <div class="field">
+          <label>Queen Status</label>
+          <select id="queen-status">
+            <option value="laying">Queen Laying ✅</option>
+            <option value="virgin">Virgin Queen 🔄</option>
+            <option value="missing">Queen Missing ⚠️</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Hive Type</label>
+          <select id="hive-type">
+            <option value="langstroth">Langstroth</option>
+            <option value="warre">Warré</option>
+            <option value="topbar">Top Bar</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider">Brood Health</div>
+      <div class="grid-3">
+        <div class="slider-field">
+          <label>Capped Brood %</label>
+          <input type="range" id="capped-brood" min="0" max="100" value="70" oninput="document.getElementById('capped-val').textContent=this.value+'%'">
+          <div class="slider-labels"><span>0%</span><span id="capped-val">70%</span><span>100%</span></div>
+        </div>
+        <div class="slider-field">
+          <label>Varroa Mites (per 100)</label>
+          <input type="range" id="varroa" min="0" max="10" value="2" step="0.5" oninput="document.getElementById('varroa-val').textContent=this.value">
+          <div class="slider-labels"><span>0</span><span id="varroa-val">2</span><span>10+</span></div>
+        </div>
+        <div class="slider-field">
+          <label>Temperament (1-10)</label>
+          <input type="range" id="temperament" min="1" max="10" value="6" oninput="document.getElementById('temp-val').textContent=this.value">
+          <div class="slider-labels"><span>Calm</span><span id="temp-val">6</span><span>Aggressive</span></div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="calcColony()">🐝 Calculate Colony Health</button>
+    </div>
+
+    <div class="results" id="colony-results">
+      <div class="card">
+        <div class="card-title">📊 Colony Assessment</div>
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-label">Est. Population</div>
+            <div class="result-value" id="res-pop">—</div>
+            <div class="result-unit">adult bees</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Brood Area</div>
+            <div class="result-value" id="res-brood">—</div>
+            <div class="result-unit">sq. inches</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Overall Score</div>
+            <div class="result-value" id="res-score">—</div>
+            <div class="result-unit">out of 100</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Varroa Status</div>
+            <div id="varroa-status" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div class="progress-wrap" style="margin-top:20px;">
+          <div class="progress-label"><span>Colony Strength</span><span id="strength-pct">—</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="strength-bar" style="width:0%"></div></div>
+        </div>
+
+        <div class="insight" id="colony-insight"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ HONEY YIELD ═══════════ -->
+  <div id="panel-honey" class="panel">
+    <div class="card">
+      <div class="card-title">🍯 Honey Yield Estimator</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Number of Honey Supers</label>
+          <input type="number" id="supers" value="2" min="0" max="10" placeholder="e.g. 2">
+        </div>
+        <div class="field">
+          <label>Frames per Super</label>
+          <input type="number" id="frames-per-super" value="10" min="6" max="12" placeholder="e.g. 10">
+        </div>
+        <div class="field">
+          <label>Average Fill Level (%)</label>
+          <input type="number" id="fill-level" value="80" min="0" max="100" placeholder="e.g. 80">
+        </div>
+        <div class="field">
+          <label>Frame Type</label>
+          <select id="frame-type">
+            <option value="deep">Deep Frame (Langstroth)</option>
+            <option value="medium">Medium Frame</option>
+            <option value="shallow">Shallow Frame</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Season / Flow</label>
+          <select id="flow-season">
+            <option value="peak">Peak Flow (Spring/Summer)</option>
+            <option value="moderate">Moderate Flow</option>
+            <option value="dearth">Dearth / Low Flow</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Moisture Content Goal (%)</label>
+          <input type="number" id="moisture" value="17" min="14" max="22" placeholder="e.g. 17">
+        </div>
+      </div>
+      <button class="btn" onclick="calcHoney()">🍯 Estimate Honey Yield</button>
+    </div>
+
+    <div class="results" id="honey-results">
+      <div class="card">
+        <div class="card-title">📦 Yield Forecast</div>
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-label">Raw Honey</div>
+            <div class="result-value" id="res-honey-lbs">—</div>
+            <div class="result-unit">lbs</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">In Kilograms</div>
+            <div class="result-value" id="res-honey-kg">—</div>
+            <div class="result-unit">kg</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Jars (12 oz)</div>
+            <div class="result-value" id="res-jars">—</div>
+            <div class="result-unit">jars</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Est. Value</div>
+            <div class="result-value" id="res-value">—</div>
+            <div class="result-unit">@ $12/lb avg</div>
+          </div>
+        </div>
+
+        <div class="divider">Super Fill Visualisation</div>
+        <div class="hive-visual" id="hive-visual"></div>
+
+        <div class="insight" id="honey-insight"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ FEEDING ═══════════ -->
+  <div id="panel-feed" class="panel">
+    <div class="card">
+      <div class="card-title">🌿 Feeding Calculator</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Colony Size</label>
+          <select id="colony-size">
+            <option value="small">Small (< 20k bees)</option>
+            <option value="medium" selected>Medium (20k–40k)</option>
+            <option value="large">Large (40k+ bees)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Feeding Purpose</label>
+          <select id="feed-purpose">
+            <option value="stimulate">Stimulate Brood Rearing</option>
+            <option value="winter">Winter Preparation</option>
+            <option value="emergency">Emergency Feeding</option>
+            <option value="package">New Package/Swarm</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Feed Type</label>
+          <select id="feed-type">
+            <option value="syrup11">Sugar Syrup 1:1</option>
+            <option value="syrup21">Sugar Syrup 2:1</option>
+            <option value="candy">Fondant / Candy Board</option>
+            <option value="pollen">Pollen Substitute</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Duration (days)</label>
+          <input type="number" id="feed-days" value="14" min="1" max="90" placeholder="e.g. 14">
+        </div>
+        <div class="field">
+          <label>Stored Honey Frames</label>
+          <input type="number" id="honey-stores" value="4" min="0" max="20" placeholder="e.g. 4">
+        </div>
+        <div class="field">
+          <label>Current Month</label>
+          <select id="feed-month">
+            <option value="jan">January</option>
+            <option value="feb">February</option>
+            <option value="mar">March</option>
+            <option value="apr">April</option>
+            <option value="may">May</option>
+            <option value="jun">June</option>
+            <option value="jul">July</option>
+            <option value="aug">August</option>
+            <option value="sep">September</option>
+            <option value="oct">October</option>
+            <option value="nov">November</option>
+            <option value="dec">December</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" onclick="calcFeed()">🌿 Calculate Feeding Plan</button>
+    </div>
+
+    <div class="results" id="feed-results">
+      <div class="card">
+        <div class="card-title">📋 Feeding Plan</div>
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-label">Sugar Needed</div>
+            <div class="result-value" id="res-sugar">—</div>
+            <div class="result-unit">lbs</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Water Volume</div>
+            <div class="result-value" id="res-water">—</div>
+            <div class="result-unit">pints</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Total Syrup</div>
+            <div class="result-value" id="res-syrup">—</div>
+            <div class="result-unit">quarts</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Feed Frequency</div>
+            <div class="result-value" id="res-freq">—</div>
+            <div class="result-unit">days between</div>
+          </div>
+        </div>
+
+        <div class="progress-wrap" style="margin-top:20px;">
+          <div class="progress-label"><span>Winter Stores Adequacy</span><span id="stores-pct">—</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="stores-bar" style="width:0%"></div></div>
+        </div>
+
+        <div class="insight" id="feed-insight"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ SWARM RISK ═══════════ -->
+  <div id="panel-swarm" class="panel">
+    <div class="card">
+      <div class="card-title">🔄 Swarm Risk Assessment</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Hive Congestion (frames used)</label>
+          <input type="number" id="frames-used" value="18" min="0" max="30" placeholder="e.g. 18">
+        </div>
+        <div class="field">
+          <label>Total Frame Capacity</label>
+          <input type="number" id="frames-total" value="20" min="1" max="40" placeholder="e.g. 20">
+        </div>
+        <div class="field">
+          <label>Queen Age (years)</label>
+          <input type="number" id="queen-age" value="2" min="0" max="6" step="0.5" placeholder="e.g. 2">
+        </div>
+        <div class="field">
+          <label>Season</label>
+          <select id="swarm-season">
+            <option value="spring">Spring 🌸</option>
+            <option value="summer">Summer ☀️</option>
+            <option value="autumn">Autumn 🍂</option>
+            <option value="winter">Winter ❄️</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider">Observable Signs</div>
+      <div class="checklist" id="swarm-signs">
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-text"><strong>Queen Cells Visible</strong>Swarm cells found along bottom of frames or between boxes</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-text"><strong>Beard Clustering</strong>Large cluster hanging outside the hive entrance</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-text"><strong>No Empty Comb Space</strong>All frames fully covered; no empty cells for queen to lay</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-text"><strong>Increased Drone Population</strong>Noticeably more drones than typical for hive size</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-text"><strong>Heightened Activity</strong>Bees appearing restless, swirling, fanning excessively</div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="calcSwarm()">🔄 Assess Swarm Risk</button>
+    </div>
+
+    <div class="results" id="swarm-results">
+      <div class="card">
+        <div class="card-title">⚠️ Swarm Risk Report</div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+          <div>
+            <div class="result-label" style="margin-bottom:8px;">Risk Level</div>
+            <div id="swarm-badge"></div>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <div class="result-label" style="margin-bottom:6px;">Congestion</div>
+            <div class="progress-bar"><div class="progress-fill" id="congestion-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-label">Risk Score</div>
+            <div class="result-value" id="res-swarm-score">—</div>
+            <div class="result-unit">out of 100</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Space Available</div>
+            <div class="result-value" id="res-space">—</div>
+            <div class="result-unit">% capacity free</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Days to Act</div>
+            <div class="result-value" id="res-days">—</div>
+            <div class="result-unit">estimated</div>
+          </div>
+        </div>
+
+        <div class="insight" id="swarm-insight"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ INSPECTION ═══════════ -->
+  <div id="panel-inspection" class="panel">
+    <div class="card">
+      <div class="card-title">📋 Inspection Checklist Generator</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Inspection Type</label>
+          <select id="inspect-type">
+            <option value="routine">Routine Weekly Check</option>
+            <option value="spring">Spring Build-Up</option>
+            <option value="pre-winter">Pre-Winter Assessment</option>
+            <option value="disease">Disease / Mite Check</option>
+            <option value="queenright">Queen-Right Check</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Last Inspection (days ago)</label>
+          <input type="number" id="days-since" value="7" min="0" max="365" placeholder="e.g. 7">
+        </div>
+      </div>
+      <button class="btn" onclick="generateChecklist()">📋 Generate Checklist</button>
+    </div>
+
+    <div class="results" id="inspect-results">
+      <div class="card">
+        <div class="card-title">✅ Inspection Tasks</div>
+        <div class="checklist" id="dynamic-checklist"></div>
+        <div class="divider" style="margin-top:24px;">Next Inspection</div>
+        <div class="insight" id="inspect-insight"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>🐝 HiveKeeper — Built for beekeepers, by beekeepers &nbsp;|&nbsp; Always verify with local expertise</footer>
+</div>
+
+<script>
+// ═══ TAB SWITCHING ═══
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function toggleCheck(el) {
+  el.classList.toggle('done');
+}
+
+function showResults(id) {
+  document.getElementById(id).classList.add('visible');
+}
+
+// ═══ COLONY HEALTH ═══
+function calcColony() {
+  const broodFrames = +document.getElementById('brood-frames').value || 0;
+  const beeFrames = +document.getElementById('bee-frames').value || 0;
+  const queenStatus = document.getElementById('queen-status').value;
+  const varroa = +document.getElementById('varroa').value;
+  const cappedBrood = +document.getElementById('capped-brood').value;
+  const temp = +document.getElementById('temperament').value;
+
+  // Estimate: ~2500 bees per frame
+  const adultPop = Math.round(beeFrames * 2500);
+  // Brood area: each deep Langstroth frame ~200 sq in
+  const broodArea = broodFrames * 200;
+
+  // Score
+  let score = 50;
+  score += Math.min(20, beeFrames * 2);
+  score += Math.min(15, broodFrames * 2.5);
+  if (queenStatus === 'laying') score += 15;
+  else if (queenStatus === 'virgin') score += 5;
+  else score -= 20;
+  if (varroa <= 2) score += 10;
+  else if (varroa <= 3) score += 0;
+  else score -= (varroa - 3) * 8;
+  if (cappedBrood > 60) score += 5;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  document.getElementById('res-pop').textContent = adultPop.toLocaleString();
+  document.getElementById('res-brood').textContent = broodArea.toLocaleString();
+  document.getElementById('res-score').textContent = score;
+
+  // Varroa badge
+  let varroaBadge = '';
+  if (varroa <= 2) varroaBadge = '<span class="status-badge status-good">✓ Low Risk</span>';
+  else if (varroa <= 3) varroaBadge = '<span class="status-badge status-warn">⚠ Treat Soon</span>';
+  else varroaBadge = '<span class="status-badge status-danger">🚨 Treat Now</span>';
+  document.getElementById('varroa-status').innerHTML = varroaBadge;
+
+  // Strength bar
+  const pct = Math.round((beeFrames / 20) * 100);
+  const bar = document.getElementById('strength-bar');
+  bar.style.width = pct + '%';
+  bar.className = 'progress-fill' + (pct < 40 ? ' danger' : pct < 60 ? ' warn' : '');
+  document.getElementById('strength-pct').textContent = pct + '%';
+
+  // Insight
+  let insight = '';
+  if (queenStatus === 'missing') {
+    insight = '<strong>⚠️ Queenless Colony!</strong> Act within 24–48 hours. Check for emergency queen cells or introduce a mated queen. A queenless colony loses ~1,500 workers per day with no replacements.';
+  } else if (varroa > 3) {
+    insight = `<strong>🚨 Varroa Level Critical (${varroa}/100 bees)</strong> Treat immediately with an approved acaricide (oxalic acid, formic acid, or Apivar). Above 3% is associated with colony collapse within 4–6 weeks.`;
+  } else if (score >= 80) {
+    insight = `<strong>🐝 Excellent Colony!</strong> Your hive is thriving with an estimated ${adultPop.toLocaleString()} bees. Consider adding supers to prevent swarming and capitalise on any upcoming nectar flows.`;
+  } else if (score >= 60) {
+    insight = `<strong>✅ Healthy Colony</strong> The hive is in good shape. Monitor varroa levels monthly and ensure adequate space as the population grows. Next full inspection recommended in 7–10 days.`;
+  } else {
+    insight = `<strong>⚠️ Colony Needs Attention</strong> Score of ${score}/100 suggests challenges. Check for disease, adequate food stores, and queen performance. Consider combining with a stronger colony if below 5 frames of bees.`;
+  }
+  document.getElementById('colony-insight').innerHTML = insight;
+
+  showResults('colony-results');
+}
+
+// ═══ HONEY YIELD ═══
+function calcHoney() {
+  const supers = +document.getElementById('supers').value || 0;
+  const fpsv = +document.getElementById('frames-per-super').value || 10;
+  const fill = +document.getElementById('fill-level').value / 100;
+  const frameType = document.getElementById('frame-type').value;
+  const season = document.getElementById('flow-season').value;
+
+  // lbs per fully capped frame by type
+  const lbsPerFrame = { deep: 6.5, medium: 4.5, shallow: 3.0 };
+  const seasonMultiplier = { peak: 1.0, moderate: 0.75, dearth: 0.5 };
+
+  const rawLbs = supers * fpsv * lbsPerFrame[frameType] * fill * seasonMultiplier[season];
+  const kg = rawLbs * 0.453592;
+  const jars = Math.floor(rawLbs / 0.75); // 12oz jar
+  const value = rawLbs * 12;
+
+  document.getElementById('res-honey-lbs').textContent = rawLbs.toFixed(1);
+  document.getElementById('res-honey-kg').textContent = kg.toFixed(1);
+  document.getElementById('res-jars').textContent = jars;
+  document.getElementById('res-value').textContent = '$' + value.toFixed(0);
+
+  // Visual
+  const visual = document.getElementById('hive-visual');
+  visual.innerHTML = '';
+  for (let s = 0; s < Math.min(supers, 4); s++) {
+    const box = document.createElement('div');
+    box.className = 'super-box honey-super';
+    box.innerHTML = `<div class="super-label">Super ${s + 1}</div><div class="super-fill" id="sf-${s}"></div>`;
+    visual.appendChild(box);
+    setTimeout(() => {
+      const sf = document.getElementById(`sf-${s}`);
+      const framesToShow = Math.min(fpsv, 5);
+      let html = '';
+      for (let r = 0; r < 2; r++) {
+        html += '<div class="frame-row">';
+        for (let f = 0; f < framesToShow; f++) {
+          const fillH = Math.round(fill * 100);
+          html += `<div class="frame"><div class="frame-fill" style="height:${fillH}%"></div></div>`;
+        }
+        html += '</div>';
+      }
+      sf.innerHTML = html;
+    }, 100 * s);
+  }
+  if (supers > 4) {
+    const extra = document.createElement('div');
+    extra.style.cssText = 'display:flex;align-items:center;color:var(--warm-grey);font-family:DM Mono,monospace;font-size:0.8rem;';
+    extra.textContent = `+${supers - 4} more supers`;
+    visual.appendChild(extra);
+  }
+
+  let insight = '';
+  if (rawLbs < 10) {
+    insight = `<strong>Low Yield Expected</strong> At ${rawLbs.toFixed(1)} lbs, make sure the hive has strong colony support and adequate forage. Consider if the flow conditions are right for extraction timing.`;
+  } else if (rawLbs < 50) {
+    insight = `<strong>🍯 Moderate Harvest</strong> ${rawLbs.toFixed(1)} lbs across ${supers} super(s) — a solid hobby harvest! Extract when 80%+ of frames are capped to ensure moisture stays below 18.5%.`;
+  } else {
+    insight = `<strong>🍯 Excellent Yield!</strong> ${rawLbs.toFixed(1)} lbs is a bumper crop. Ensure your extractor can handle the volume, and test moisture content with a refractometer before bottling. At $12/lb retail that's ~$${value.toFixed(0)}.`;
+  }
+  document.getElementById('honey-insight').innerHTML = insight;
+  showResults('honey-results');
+}
+
+// ═══ FEEDING ═══
+function calcFeed() {
+  const size = document.getElementById('colony-size').value;
+  const purpose = document.getElementById('feed-purpose').value;
+  const feedType = document.getElementById('feed-type').value;
+  const days = +document.getElementById('feed-days').value || 14;
+  const stores = +document.getElementById('honey-stores').value;
+  const month = document.getElementById('feed-month').value;
+
+  // Base daily consumption lbs of sugar per colony size
+  const dailyBase = { small: 0.3, medium: 0.5, large: 0.8 };
+  const purposeMult = { stimulate: 0.6, winter: 1.0, emergency: 1.2, package: 0.8 };
+
+  const dailySugar = dailyBase[size] * purposeMult[purpose];
+  const totalSugar = dailySugar * days;
+
+  // Syrup ratios
+  let waterRatio = 1; // 1:1
+  if (feedType === 'syrup21') waterRatio = 0.5;
+
+  const waterPints = totalSugar * waterRatio * 2; // 1 lb sugar ≈ 1 pint water for 1:1
+  const syrupQuarts = (totalSugar + totalSugar * waterRatio) / 2;
+  const feedFreq = feedType === 'candy' ? 7 : feedType === 'syrup21' ? 3 : 2;
+
+  document.getElementById('res-sugar').textContent = totalSugar.toFixed(1);
+  document.getElementById('res-water').textContent = waterPints.toFixed(1);
+  document.getElementById('res-syrup').textContent = syrupQuarts.toFixed(1);
+  document.getElementById('res-freq').textContent = feedFreq;
+
+  // Stores adequacy — 40 lbs needed for winter = ~8 full honey frames
+  const winterFramesNeeded = 8;
+  const storesPct = Math.min(100, Math.round((stores / winterFramesNeeded) * 100));
+  const storesBar = document.getElementById('stores-bar');
+  storesBar.style.width = storesPct + '%';
+  storesBar.className = 'progress-fill' + (storesPct < 40 ? ' danger' : storesPct < 75 ? ' warn' : '');
+  document.getElementById('stores-pct').textContent = storesPct + '%';
+
+  let insight = '';
+  const winterMonths = ['sep', 'oct', 'nov', 'dec', 'jan', 'feb'];
+  if (winterMonths.includes(month) && stores < 6) {
+    insight = `<strong>🚨 Insufficient Winter Stores!</strong> With only ${stores} frames of honey heading into winter, the colony is at serious starvation risk. Target 60–80 lbs (10–12 full frames) for overwintering in cold climates. Begin emergency feeding immediately with 2:1 syrup or candy boards.`;
+  } else if (purpose === 'stimulate') {
+    insight = `<strong>🌸 Stimulative Feeding Plan</strong> Feed thin 1:1 syrup to mimic a nectar flow and encourage brood rearing. Start 4–6 weeks before desired build-up date. You'll need approximately <strong>${totalSugar.toFixed(1)} lbs of sugar</strong> over ${days} days. Pollen substitute patties alongside syrup will maximise results.`;
+  } else {
+    insight = `<strong>📦 Feeding Plan Summary</strong> Total sugar required: <strong>${totalSugar.toFixed(1)} lbs</strong>. Mix with ${waterPints.toFixed(1)} pints of warm water (for syrup). Refill feeder every ${feedFreq} days or as consumed. Monitor for robbing, especially in dearth periods — reduce entrance if needed.`;
+  }
+  document.getElementById('feed-insight').innerHTML = insight;
+  showResults('feed-results');
+}
+
+// ═══ SWARM RISK ═══
+function calcSwarm() {
+  const used = +document.getElementById('frames-used').value || 0;
+  const total = +document.getElementById('frames-total').value || 1;
+  const queenAge = +document.getElementById('queen-age').value;
+  const season = document.getElementById('swarm-season').value;
+
+  const congestion = Math.round((used / total) * 100);
+  const signChecks = document.querySelectorAll('#swarm-signs .check-item.done').length;
+  const spaceFree = 100 - congestion;
+
+  let risk = 0;
+  risk += congestion * 0.4;
+  risk += signChecks * 10;
+  if (season === 'spring') risk += 20;
+  else if (season === 'summer') risk += 10;
+  else if (season === 'winter') risk -= 15;
+  if (queenAge > 2) risk += 10;
+  if (queenAge > 4) risk += 10;
+  risk = Math.max(0, Math.min(100, Math.round(risk)));
+
+  const daysToAct = risk > 75 ? 1 : risk > 50 ? 3 : risk > 30 ? 7 : 14;
+
+  document.getElementById('res-swarm-score').textContent = risk;
+  document.getElementById('res-space').textContent = spaceFree;
+  document.getElementById('res-days').textContent = daysToAct;
+
+  const congBar = document.getElementById('congestion-bar');
+  congBar.style.width = congestion + '%';
+  congBar.className = 'progress-fill' + (congestion > 80 ? ' danger' : congestion > 60 ? ' warn' : '');
+
+  let badge = '';
+  if (risk >= 75) badge = '<span class="status-badge status-danger">🚨 HIGH RISK</span>';
+  else if (risk >= 45) badge = '<span class="status-badge status-warn">⚠️ MODERATE RISK</span>';
+  else badge = '<span class="status-badge status-good">✓ LOW RISK</span>';
+  document.getElementById('swarm-badge').innerHTML = badge;
+
+  let insight = '';
+  if (risk >= 75) {
+    insight = `<strong>🚨 Imminent Swarm — Act Now!</strong> Risk score ${risk}/100. Immediate actions: (1) Add a super or split the colony today. (2) Find and remove any existing queen cells (except 1–2 if making a split). (3) Ensure the queen has empty cells to lay. A swarm can leave within hours of this assessment.`;
+  } else if (risk >= 45) {
+    insight = `<strong>⚠️ Elevated Swarm Risk</strong> Risk score ${risk}/100. Take action within ${daysToAct} days. Add space immediately (another super or box), perform a checkerboard pattern with frames, or make a preventative split. Check for queen cells at next inspection.`;
+  } else if (risk >= 25) {
+    insight = `<strong>👁 Monitor Closely</strong> Risk score ${risk}/100. The hive is not yet at critical risk but watch for queen cells on the next inspection. Ensure there's adequate space and the colony doesn't get too congested as populations build.`;
+  } else {
+    insight = `<strong>✅ Swarm Risk Low</strong> Risk score ${risk}/100. Current conditions do not suggest imminent swarming. Continue routine inspections every 7–10 days in the active season and ensure food stores remain adequate.`;
+  }
+  document.getElementById('swarm-insight').innerHTML = insight;
+  showResults('swarm-results');
+}
+
+// ═══ INSPECTION CHECKLIST ═══
+function generateChecklist() {
+  const type = document.getElementById('inspect-type').value;
+  const daysSince = +document.getElementById('days-since').value || 7;
+
+  const checklists = {
+    routine: [
+      { title: 'Queen Presence', text: 'Look for eggs (pencil-tip sized, standing upright in cells), young larvae, or the queen herself. Fresh eggs confirm a laying queen within the last 3 days.' },
+      { title: 'Brood Pattern', text: 'Assess brood pattern — should be solid and consistent with minimal empty cells. Shotgun pattern may indicate disease (EFB, AFB) or poor queen.' },
+      { title: 'Varroa Check', text: 'Count natural mite drop on a 24-hour sticky board, or do an alcohol wash of 300 bees. Above 2% triggers treatment.' },
+      { title: 'Food Stores', text: 'Estimate frames of honey and pollen. Minimum 2 frames of pollen + 4+ frames of honey for colony health. Feed if low.' },
+      { title: 'Hive Space', text: 'Check for congestion. Add super/box if 80%+ of frames are drawn and used. Prevent swarming proactively.' },
+      { title: 'Disease / Pest Signs', text: 'Look for American Foulbrood (stringy, coffee-smelling), Chalkbrood (mummified larvae), Sacbrood, or small hive beetles.' },
+      { title: 'Entrance Observation', text: 'Before opening: note bee activity level, returning foragers with pollen, any dead bees, robbing behaviour, or unusual clustering.' },
+    ],
+    spring: [
+      { title: 'Winter Cluster Assessment', text: 'Locate and assess winter cluster. Is the queen laying? Note cluster size relative to last autumn — some winter loss is normal.' },
+      { title: 'Dead Bee Cleanout', text: 'Clear dead bees from the bottom board to prevent disease and moisture buildup. Check for signs of starvation (heads in cells).' },
+      { title: 'Emergency Feeding', text: 'Weigh hive or heft to check stores. Spring is peak starvation risk — populations boom faster than forage arrives. Feed 1:1 syrup if under 20 lbs.' },
+      { title: 'Varroa Baseline', text: 'Perform alcohol wash for accurate mite count before brood rears up. Treat now if above 1% to protect the new brood.' },
+      { title: 'Swarm Prevention Plan', text: 'Note number of frames of bees. Prepare extra boxes/supers. Plan first split if over 8 frames of bees in coming weeks.' },
+      { title: 'Requeen Assessment', text: 'Is the queen 2+ years old? Consider replacing in spring before the season when queens are readily available and the colony is building.' },
+      { title: 'Equipment Check', text: 'Inspect boxes, frames, and foundation for damage over winter. Replace any damaged comb, especially dark/old foundation.' },
+    ],
+    'pre-winter': [
+      { title: 'Winter Stores Assessment', text: 'Target 60–80 lbs of honey (Northern hemisphere cold climate). Heft the hive — should feel very heavy. Feed 2:1 syrup to top up until temps drop.' },
+      { title: 'Varroa Treatment', text: 'Critical: treat with approved acaricide while some brood is present but reducing. Oxalic acid dribble is most effective when colony is broodless in late autumn.' },
+      { title: 'Queen Confirmation', text: 'Confirm queen is present and young (preferably current-year queen). Old or failing queens dramatically increase overwintering failure.' },
+      { title: 'Colony Population', text: 'Needs minimum 5–6 frames of bees to overwinter successfully. Consider combining weak colonies now rather than letting both fail.' },
+      { title: 'Entrance Reducer', text: 'Install entrance reducer to prevent mice and reduce drafts. Leave ventilation — condensation kills more bees than cold.' },
+      { title: 'Mouseguard Installation', text: 'Fit mouse guard before mice begin seeking shelter (typically September\u2013October). Check it is clear and not blocking the entrance.' },
+      { title: 'Upper Ventilation', text: 'Ensure the hive has upper ventilation. Condensation dripping onto the cluster can be fatal. Add a notched inner cover or moisture quilt.' },
+    ],
+    disease: [
+      { title: 'Varroa Alcohol Wash', text: 'Collect 300 adult bees (approx half cup) in alcohol and count mites. Above 2% (6 mites per 300) requires immediate treatment.' },
+      { title: 'American Foulbrood (AFB)', text: 'Probe suspect capped brood with a stick. AFB produces a "ropy" string 1–3cm long. Smells like rotting flesh. If found, notify local bee inspector immediately — reportable disease.' },
+      { title: 'European Foulbrood (EFB)', text: 'Look for twisted, discoloured (yellow/brown) uncapped larvae in a melted posture. Less severe than AFB. Treat with antibiotics (where legal) or requeen.' },
+      { title: 'Sacbrood', text: 'Larvae fail to pupate, fluid accumulates under skin. Affected larvae are grey-white, sac-like. Usually self-limiting — improve nutrition and consider requeening.' },
+      { title: 'Chalkbrood / Stonebrood', text: 'Hard, mummified larvae (white or black) on the bottom board or in cells. Caused by Ascosphaera apis fungus. Improve ventilation and requeen to hygienic stock.' },
+      { title: 'Small Hive Beetle (SHB)', text: 'Check cracks, under frames, and bottom board for shiny black beetles (5–7mm). Larvae can destroy comb. Use traps; keep colony strong to police beetles.' },
+      { title: 'Nosema Assessment', text: 'Look for dysentery streaks on the front of the hive or frames. Lab microscopy confirms. Fumagillin no longer licensed in many countries — improve forage and nutrition.' },
+    ],
+    queenright: [
+      { title: 'Egg Check', text: 'Find eggs standing upright in the base of cells (use a torch if needed). Presence confirms a laying queen within the last 72 hours.' },
+      { title: 'Young Larvae Check', text: 'Look for curled white larvae in a C-shape in an abundance of royal jelly. This confirms the queen was laying 3–6 days ago.' },
+      { title: 'Brood Pattern Quality', text: 'Check if capped brood is compact and consistent. A spotty pattern may indicate disease, pesticide damage, or a failing/drone-laying queen.' },
+      { title: 'Emergency Queen Cells', text: 'Look carefully for emergency queen cells — often on the face of frames, irregular in placement. Emergency cells = queenless for 3–5+ days.' },
+      { title: 'Drone Laying Worker Signs', text: 'Scattered, raised (bullet-like) capped cells, often multiple eggs per cell = laying workers. Only resolvable by introducing a new mated queen with a split.' },
+      { title: 'Queen Physical Check', text: 'If possible, locate the queen. Check she is moving normally, has a full, unclipped abdomen, and bees are attending her (not balling her). Mark if unmarked.' },
+    ],
+  };
+
+  const tasks = checklists[type] || checklists.routine;
+  const container = document.getElementById('dynamic-checklist');
+  container.innerHTML = '';
+  tasks.forEach(task => {
+    const item = document.createElement('div');
+    item.className = 'check-item';
+    item.onclick = function() { toggleCheck(this); };
+    item.innerHTML = `<div class="check-box">✓</div><div class="check-text"><strong>${task.title}</strong>${task.text}</div>`;
+    container.appendChild(item);
+  });
+
+  const nextInspect = type === 'pre-winter' ? 30 : type === 'disease' ? 3 : 7;
+  let urgency = daysSince > 14 ? '⚠️ Overdue — inspect immediately.' : daysSince > 10 ? '📋 Inspection is due soon.' : '✅ On schedule.';
+  document.getElementById('inspect-insight').innerHTML = `<strong>${urgency}</strong> Last inspected ${daysSince} days ago. For a <em>${type.replace('-', ' ')}</em> inspection, return in <strong>${nextInspect} days</strong>. Record all findings in your hive journal immediately after the inspection while details are fresh.`;
+
+  showResults('inspect-results');
+}
+</script>
+</body>
+</html>
